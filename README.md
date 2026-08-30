@@ -164,5 +164,6 @@ Issues and pull requests welcome.
 - **System Requirements:** macOS 11.0 (Big Sur) or higher, Apple Magic Mouse (1, 2 or 3)
 - **Repo URL:** https://github.com/sridevsoft/tapmagicmouse
 - **Contacts:** sriharishsathya@gmail.com
+- **LinkedIn:** https://www.linkedin.com/in/sriharishs/
 
 If TapMouse is useful to you, a star helps other Magic Mouse owners find it.
