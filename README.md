@@ -1,7 +1,20 @@
 # TapMouse
 
-Tap-to-click for the Apple Magic Mouse on macOS. Written from scratch, ~570 lines
-of Swift, no dependencies, no network access.
+Tap-to-click for the Apple Magic Mouse on macOS.
+
+The Magic Mouse's entire top surface is a multitouch sensor — macOS already reads
+it for scrolling and swipes. Apple just never wired it to "tap = click" the way
+they did for trackpads. TapMouse does that, in ~570 lines of Swift with no
+dependencies and no network access.
+
+Scrolling, swiping and the physical click all keep working. TapMouse installs no
+event tap, so it cannot intercept or block anything — it only adds clicks.
+
+## Requirements
+
+- macOS 11 or later
+- An Apple Magic Mouse (1st, 2nd or 3rd generation)
+- Accessibility permission, which macOS requires for any app that synthesizes input
 
 ## Build
 
@@ -53,9 +66,28 @@ Drags are driven from the touch callback itself: while a drag is active, each
 frame posts a `leftMouseDragged` at the current cursor position, so no global
 event tap is needed.
 
+## Caveats
+
+**It relies on a private framework.** `MultitouchSupport` is undocumented and its
+struct layout is reverse-engineered. Apple can change it in any macOS release and
+break this. That is true of every Magic Mouse tap-to-click tool, paid ones
+included — there is no public API for this data.
+
+**Builds are ad-hoc signed, not notarized.** Gatekeeper may need a right-click →
+Open on first launch. Because macOS keys Accessibility grants to an app's
+signature, rebuilding can require removing the old entry from the Accessibility
+list and re-adding it.
+
+**A very short, very small flick can read as a tap.** It is the one realistic
+false positive. Set Tap Sensitivity to Low if it bothers you.
+
+**No launch-at-login.** Add it under System Settings → General → Login Items.
+
 ## Scope
 
 Only the four gestures in the table above. It does not remap buttons, add swipe
 gestures, or run at login. Deliberately small enough to read in one sitting.
 
-MIT.
+## License
+
+MIT — see [LICENSE](LICENSE).
