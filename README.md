@@ -1,66 +1,133 @@
-# TapMouse
+# TapMouse — Tap to Click for the Apple Magic Mouse on macOS
 
-Tap-to-click for the Apple Magic Mouse on macOS.
+**Tap the surface instead of pressing down.** TapMouse adds trackpad-style
+tap-to-click, right-click and drag gestures to the Apple Magic Mouse on macOS.
+Free, open source, ~570 lines of Swift, no dependencies, no network access.
 
-The Magic Mouse's entire top surface is a multitouch sensor — macOS already reads
-it for scrolling and swipes. Apple just never wired it to "tap = click" the way
-they did for trackpads. TapMouse does that, in ~570 lines of Swift with no
-dependencies and no network access.
+![Platform](https://img.shields.io/badge/platform-macOS%2011%2B-lightgrey)
+![Language](https://img.shields.io/badge/swift-5.x-orange)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)
 
-Scrolling, swiping and the physical click all keep working. TapMouse installs no
-event tap, so it cannot intercept or block anything — it only adds clicks.
+---
 
-## Requirements
+## Why this exists
 
-- macOS 11 or later
-- An Apple Magic Mouse (1st, 2nd or 3rd generation)
-- Accessibility permission, which macOS requires for any app that synthesizes input
+The Magic Mouse's entire top surface is a multitouch sensor. macOS already reads
+it for scrolling and swipe gestures — but Apple never wired it to "tap = click"
+the way they did for the trackpad. There is no checkbox for it in System Settings,
+and there never has been.
 
-## Build
+The touch data is right there, streaming. TapMouse listens to it and turns a light
+tap into a click. No more pressing down; no more click noise in a quiet room.
+
+## Install
 
 ```sh
+git clone https://github.com/sridevsoft/tapmagicmouse.git
+cd tapmagicmouse
 ./build.sh
 ditto build/TapMouse.app /Applications/TapMouse.app
 open /Applications/TapMouse.app
 ```
 
-Grant Accessibility when prompted (System Settings -> Privacy & Security ->
-Accessibility). The app cannot post clicks without it.
+Grant **Accessibility** when prompted (System Settings → Privacy & Security →
+Accessibility). macOS requires it for any app that synthesizes input — TapMouse
+cannot post a click without it.
 
-## Behaviour
+No prebuilt binary is published on purpose. An app that can synthesize input
+should be one you compiled yourself from source you can read.
+
+## Gestures
 
 | Gesture | Result |
 |---|---|
-| Tap left part of the surface | Left click |
-| Tap right part of the surface | Right click |
-| Two-finger tap | Right click (off by default) |
-| Double-tap, then hold and move | Drag (off by default) |
+| Tap the left part of the surface | Left click |
+| Tap the right part of the surface | Right click |
+| Tap twice quickly | Double-click |
+| Two-finger tap | Right click *(optional)* |
+| Double-tap, then hold and move | Drag *(optional)* |
 
-Everything is toggled from the menu bar icon.
-
-**Tap Sensitivity** trades accidental clicks against how crisply you must tap.
-Low requires a 0.18s tap with almost no drift; High allows 0.35s and more
-movement. Start at Medium; drop to Low if a resting hand triggers clicks.
-
+Everything is toggled from the menu bar icon. **Tap Sensitivity** (Low / Medium /
+High) trades accidental clicks against how crisply you have to tap.
 **Right-Click Area** sets where the surface splits, from 50/50 to 80/20.
+
+Scrolling, swiping and the physical click keep working exactly as before.
+TapMouse installs no event tap, so it cannot intercept or block anything — it
+only adds clicks.
+
+## How it compares
+
+| | TapMouse | BetterTouchTool | Magic Utilities | MouseToucher / MagicTap |
+|---|---|---|---|---|
+| Price | Free | Paid (free trial) | Paid | Free |
+| Open source | Yes (MIT) | No | No | Yes |
+| Runs on macOS | Yes | Yes | **No — Windows only** | Yes |
+| Double-tap = double-click | Yes | Yes | Yes | No |
+| Tap-and-drag | Yes | Yes | Yes | No |
+| Adjustable sensitivity | Yes | Yes | Yes | No |
+| Scope | Just tap-to-click | Everything | Everything | Just tap-to-click |
+
+If you want a full gesture and automation suite, BetterTouchTool is genuinely
+excellent and worth paying for. TapMouse does one thing.
+
+**A note on Magic Utilities:** it is frequently suggested for this, but it is a
+Windows driver package for using Apple peripherals on a PC. It does not run on
+macOS at all.
+
+## FAQ
+
+### Does the Magic Mouse have tap to click?
+
+The hardware does — the surface is a multitouch sensor. macOS does not expose the
+feature. That gap is what this app fills.
+
+### How do I enable tap to click on a Magic Mouse on a Mac?
+
+There is no built-in setting. You need software that reads the mouse's touch data
+and synthesizes clicks — TapMouse, or one of the alternatives in the table above.
+
+### Can I stop the Magic Mouse from clicking so loudly?
+
+Yes. The click noise comes from the physical switch. Tap instead of pressing and
+the mouse is silent. The physical click still works whenever you want it.
+
+### Does this break scrolling?
+
+No. TapMouse observes the touch stream rather than intercepting it, and installs
+no event tap. Scrolling and swiping are untouched, and a scroll gesture is
+explicitly disqualified from becoming a tap.
+
+### Does it work on Apple Silicon?
+
+Yes. `build.sh` produces a universal binary for both arm64 and x86_64.
+
+### Which Magic Mouse generations work?
+
+All of them — 1, 2 and 3. They report touch data identically.
 
 ## How it works
 
-`MultitouchSupport.framework` is a private Apple framework and the only way to
-read raw Magic Mouse touch data — there is no public API. `TouchSource` registers
-a frame callback on every external multitouch device that reports an opaque
-surface (Magic Mice do; trackpads do not; built-in trackpads are always skipped).
+**`TouchSource.swift`** — There is no public API for raw Magic Mouse touches. The
+data lives behind `MultitouchSupport.framework`, a private Apple framework, so the
+functions are declared by hand in `MultitouchBridge.h`. `MTDeviceCreateList()`
+enumerates multitouch devices, `MTRegisterContactFrameCallback()` subscribes, and
+from then on a callback fires 60–100 times a second with each contact's position
+on the surface, size, velocity and lifecycle state.
 
-`TapEngine` is a state machine over those frames. A contact becomes a tap only if
-it is brief, drifts less than the sensitivity threshold, and is not part of a
-multi-finger gesture. Anything else is rejected so scrolling and swiping still work.
+**`TapEngine.swift`** — The hard part is not reading touches, it is that *most
+contacts are not taps*: a resting palm, a hand repositioning, a scroll. So the
+engine inverts the problem. Every contact starts as a tap candidate and gets
+disqualified — too slow, drifted too far, too many fingers — dropping into a
+rejected state it cannot leave until all fingers lift. What survives is a tap.
 
-`ClickSynthesizer` posts the events. The non-obvious part is `clickState`: macOS
-decides "that was a double-click" from a counter carried on the event, not from
-timing at the receiving end. Tap-to-click implementations that post every click
-with `clickState = 1` break double-clicking — folders don't open, words don't
-select. This tracks the run length against the system double-click interval and
-stamps it on each event.
+**`ClickSynthesizer.swift`** — Posts `CGEvent` mouse events at the cursor,
+injected at `cghidEventTap` where real hardware events enter. The non-obvious part
+is `clickState`: macOS decides "that was a double-click" from a counter carried on
+the event itself, not from timing at the receiving end. Post every click with
+`clickState = 1` and double-clicking silently breaks forever — folders don't open,
+words don't select. TapMouse tracks the run length against the system double-click
+interval and stamps it on each event.
 
 Drags are driven from the touch callback itself: while a drag is active, each
 frame posts a `leftMouseDragged` at the current cursor position, so no global
@@ -85,8 +152,10 @@ false positive. Set Tap Sensitivity to Low if it bothers you.
 
 ## Scope
 
-Only the four gestures in the table above. It does not remap buttons, add swipe
+Only the gestures in the table above. It does not remap buttons, add swipe
 gestures, or run at login. Deliberately small enough to read in one sitting.
+
+Issues and pull requests welcome.
 
 ## License
 
