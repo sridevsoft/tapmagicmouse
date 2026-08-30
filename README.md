@@ -157,6 +157,12 @@ gestures, or run at login. Deliberately small enough to read in one sitting.
 
 Issues and pull requests welcome.
 
-## License
+## About
 
-MIT — see [LICENSE](LICENSE).
+- **Author:** Sriharish Sathya
+- **License:** MIT — see [LICENSE](LICENSE)
+- **System Requirements:** macOS 11.0 (Big Sur) or higher, Apple Magic Mouse (1, 2 or 3)
+- **Repo URL:** https://github.com/sridevsoft/tapmagicmouse
+- **Contacts:** sriharishsathya@gmail.com
+
+If TapMouse is useful to you, a star helps other Magic Mouse owners find it.
